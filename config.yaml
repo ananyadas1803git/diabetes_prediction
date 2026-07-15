@@ -1,0 +1,72 @@
+data:
+  raw_path: data/raw/diabetes.csv
+  processed_path: data/processed/diabetes_processed.csv
+  synthetic_path: data/synthetic/diabetes_synthetic.csv
+  train_test_split: 0.8
+  random_state: 42
+
+preprocessing:
+  handle_missing: true
+  detect_outliers: false
+  outlier_method: iqr
+  scale_features: true
+
+feature_selection:
+  n_features_to_select: 5
+  correlation_threshold: 0.9
+  methods: [correlation, mutual_information, rfe, xgboost_importance]
+
+diffusion:
+  device: cpu
+  num_timesteps: 100
+  beta_start: 0.0001
+  beta_end: 0.02
+  hidden_dim: 64
+  num_layers: 2
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 50
+  num_synthetic_samples: 200
+
+optimization:
+  population_size: 15
+  max_iterations: 20
+  early_stopping_rounds: 8
+  convergence_threshold: 0.0001
+  cv_folds: 5
+  search_space:
+    max_depth: {type: int, min: 3, max: 8}
+    learning_rate: {type: float, min: 0.01, max: 0.3}
+    n_estimators: {type: int, min: 50, max: 300}
+    gamma: {type: float, min: 0.0, max: 5.0}
+    min_child_weight: {type: int, min: 1, max: 10}
+    subsample: {type: float, min: 0.5, max: 1.0}
+    colsample_bytree: {type: float, min: 0.5, max: 1.0}
+    reg_alpha: {type: float, min: 0.0, max: 1.0}
+    reg_lambda: {type: float, min: 0.0, max: 2.0}
+
+model:
+  save_path: models/xgboost_model.joblib
+  scaler_path: models/scaler.joblib
+  feature_selector_path: models/feature_selector.joblib
+  early_stopping_rounds: 10
+  validation_fraction: 0.1
+
+evaluation:
+  plots_path: outputs/evaluation
+  save_plots: true
+
+explainability:
+  save_path: outputs/shap
+  num_samples: 200
+
+baseline:
+  models: [logistic_regression, random_forest, svm, default_xgboost]
+  grid_search_cv: 5
+  random_search_iterations: 20
+  optuna_trials: 20
+
+logging:
+  level: INFO
+  log_file: logs/diabetes_predictor.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

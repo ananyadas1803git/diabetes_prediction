@@ -14,35 +14,57 @@ A research-oriented machine learning framework that combines tabular diffusion-b
 - **Streamlit Frontend**: Interactive web interface for predictions and explanations
 - **Docker Support**: Containerized deployment
 
-## 📂 Project Structure
+## Project Structure
 
 ```
-diabetes_prediction/
+diabetes-predictor/
 │
 ├── data/
-│   ├── raw/
-│   └── processed/
+│   ├── raw/              # Original datasets
+│   ├── processed/        # Preprocessed data
+│   └── synthetic/        # Diffusion-generated data
 │
-├── notebooks/
+├── notebooks/            # Jupyter notebooks for exploration
 │
 ├── src/
-│   ├── data_preprocessing.py
-│   ├── eda.py
-│   ├── feature_selection.py
-│   ├── model_training.py
-│   ├── model_evaluation.py
-│   └── utils.py
+│   ├── preprocessing/
+|            ├──_pychache_
+|                   ├──eda.py/
+|                   ├──preprocessor.py/    # Data loading and preprocessing
+│   ├── feature_selection/                 # Feature selection methods
+│   ├── diffusion/                          # Tabular diffusion model
+│   ├── optimization/
+|            ├──__pycache__/
+|           ├──tso_hba.py/     # TSO-HBA optimizer
+│   ├── models/           # XGBoost model training
+│   ├── explainability/
+|   |        └── shap_explainer.py/  # SHAP explanations
+│   ├── evaluation/
+|   ├──    └── base_line_comparision.py/
+|   |      └── evaluator.py/     # Model evaluation metrics
+│   └── utils/                    # Utility functions
 │
-├── outputs/
-│   ├── plots/
-│   ├── models/
-│   └── reports/
+├── api/
+|   ├──__pycache__
+|          ├──__init__.py/
+|          ├──main.py/
+|          └── schema.py/ # FastAPI backend
+├── frontend/             # Streamlit frontend
+├── models/
+|      ├──pycache/
+|           ├──ensemble.py/
+|           ├──xgboost_model.py/              # Saved model files
+├── tests/
+|        ├──test_ensemble.py/
+|        ├──test_feature_selection.py/
+|        ├──test_optimisation.py/
+|        ├──test_preprocessing.py/                # Unit tests
+├── deployment/           # Docker configuration
 │
 ├── requirements.txt
-├── config.yaml
-└── README.md
+├── README.md
+└── main.py              # Main pipeline script
 ```
-
 
 ## Installation
 
@@ -175,3 +197,4 @@ MIT License
 - Pima Indians Diabetes Dataset from National Institute of Diabetes and Digestive and Kidney Diseases
 - XGBoost library
 - SHAP library for model explainability
+

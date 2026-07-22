@@ -1,20 +1,42 @@
 data:
-  raw_path: data/raw/diabetes.csv
+  raw_path: data/raw/diabetes_binary_health_indicators_BRFSS2015.csv
   processed_path: data/processed/diabetes_processed.csv
   synthetic_path: data/synthetic/diabetes_synthetic.csv
   train_test_split: 0.8
   random_state: 42
+  target_column: Diabetes_binary
+  rebalance_strategy: oversample_minority
+  oversample_target_ratio: 1.0
 
 preprocessing:
   handle_missing: true
   detect_outliers: false
   outlier_method: iqr
   scale_features: true
+  feature_engineering: true
+  zero_as_missing_columns: []
 
 feature_selection:
-  n_features_to_select: 5
+  n_features_to_select: all
   correlation_threshold: 0.9
   methods: [correlation, mutual_information, rfe, xgboost_importance]
+
+model:
+  save_path: models/xgboost_model.joblib
+  scaler_path: models/scaler.joblib
+  feature_selector_path: models/feature_selector.joblib
+  early_stopping_rounds: 10
+  validation_fraction: 0.1
+  use_all_features_for_final_model: false
+
+evaluation:
+  plots_path: outputs/evaluation
+  save_plots: true
+  validation_cv_folds: 5
+  threshold_method: precision_recall
+  threshold_beta: 0.5
+  validate_feature_selection: true
+  auto_select_feature_set: true
 
 diffusion:
   device: cpu
@@ -27,34 +49,29 @@ diffusion:
   learning_rate: 0.001
   epochs: 50
   num_synthetic_samples: 200
+  use_synthetic_augmentation: true
+  generate_positive_synthetic_only: true
 
 optimization:
-  population_size: 15
-  max_iterations: 20
+  optimizer_type: optuna
+  objective_metric: average_precision
+  population_size: 25
+  max_iterations: 40
   early_stopping_rounds: 8
   convergence_threshold: 0.0001
   cv_folds: 5
+  repeated_cv_repeats: 3
+  optuna_trials: 50
   search_space:
-    max_depth: {type: int, min: 3, max: 8}
-    learning_rate: {type: float, min: 0.01, max: 0.3}
-    n_estimators: {type: int, min: 50, max: 300}
-    gamma: {type: float, min: 0.0, max: 5.0}
+    max_depth: {type: int, min: 3, max: 10}
+    learning_rate: {type: float, min: 0.01, max: 0.2}
+    n_estimators: {type: int, min: 50, max: 500}
+    gamma: {type: float, min: 0.0, max: 8.0}
     min_child_weight: {type: int, min: 1, max: 10}
-    subsample: {type: float, min: 0.5, max: 1.0}
-    colsample_bytree: {type: float, min: 0.5, max: 1.0}
-    reg_alpha: {type: float, min: 0.0, max: 1.0}
-    reg_lambda: {type: float, min: 0.0, max: 2.0}
-
-model:
-  save_path: models/xgboost_model.joblib
-  scaler_path: models/scaler.joblib
-  feature_selector_path: models/feature_selector.joblib
-  early_stopping_rounds: 10
-  validation_fraction: 0.1
-
-evaluation:
-  plots_path: outputs/evaluation
-  save_plots: true
+    subsample: {type: float, min: 0.4, max: 1.0}
+    colsample_bytree: {type: float, min: 0.4, max: 1.0}
+    reg_alpha: {type: float, min: 0.0, max: 2.0}
+    reg_lambda: {type: float, min: 0.0, max: 3.0}
 
 explainability:
   save_path: outputs/shap

@@ -18,6 +18,7 @@ class XGBoostModel:
               early_stopping_rounds: int | None = None) -> XGBClassifier:
         self.feature_names = feature_names
         defaults = {
+            "objective": "binary:logistic",
             "max_depth": 6,
             "learning_rate": 0.1,
             "n_estimators": 200,
@@ -28,7 +29,9 @@ class XGBoostModel:
             "colsample_bytree": 0.8,
             "reg_alpha": 0,
             "reg_lambda": 1,
-            "eval_metric": "logloss",
+            "scale_pos_weight": 1,
+            "eval_metric": ["logloss", "auc"],
+            "verbosity": 0,
             "n_jobs": -1,
         }
         if early_stopping_rounds is not None:

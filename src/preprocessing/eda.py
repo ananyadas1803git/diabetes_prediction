@@ -13,8 +13,10 @@ import seaborn as sns
 
 class EDAAnalyzer:
     def __init__(self, config: dict[str, Any], logger: Any):
-        self.logger = logger; self.target_column = "Outcome"
-        self.plots_path = Path(config["evaluation"]["plots_path"]); self.plots_path.mkdir(parents=True, exist_ok=True)
+        self.logger = logger
+        self.target_column = config["data"].get("target_column", "Outcome")
+        self.plots_path = Path(config["evaluation"]["plots_path"])
+        self.plots_path.mkdir(parents=True, exist_ok=True)
 
     def _save(self, name: str):
         plt.tight_layout(); plt.savefig(self.plots_path / name, dpi=150, bbox_inches="tight"); plt.close()

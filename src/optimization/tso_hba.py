@@ -1,7 +1,7 @@
 #tso_hba.py
 import numpy as np
 import xgboost as xgb
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold, StratifiedKFold
 from typing import Dict, Any, List, Tuple
 import logging
 from tqdm import tqdm
@@ -14,7 +14,9 @@ class TSOHBAOptimizer:
         self.early_stopping_rounds = config['optimization']['early_stopping_rounds']
         self.convergence_threshold = config['optimization']['convergence_threshold']
         self.cv_folds = config['optimization']['cv_folds']
+        self.cv_repeats = config['optimization'].get('repeated_cv_repeats', 1)
         self.search_space = config['optimization']['search_space']
+        self.objective_metric = config['optimization'].get('objective_metric', 'roc_auc')
         self.param_names = list(self.search_space.keys())
         self.best_solution = None
         self.best_fitness = -np.inf
@@ -44,12 +46,19 @@ class TSOHBAOptimizer:
         return params
     def _evaluate_fitness(self,solution: np.ndarray,X_train: np.ndarray,y_train: np.ndarray) -> float:
         params = self._decode_solution(self._clip_to_search_space(np.asarray(solution, dtype=float).reshape(1, -1))[0])
-        model = xgb.XGBClassifier(**params, random_state=42, eval_metric='logloss', n_jobs=1)
+        pos_count = int(np.sum(y_train == 1))
+        neg_count = int(np.sum(y_train == 0))
+        if pos_count > 0:
+            params.setdefault("scale_pos_weight", float(neg_count) / pos_count)
+        else:
+            params.setdefault("scale_pos_weight", 1.0)
+        model = xgb.XGBClassifier(**params, random_state=42, eval_metric='logloss', verbosity=0, n_jobs=-1)
+        cv = RepeatedStratifiedKFold(n_splits=self.cv_folds, n_repeats=self.cv_repeats, random_state=42) if self.cv_repeats > 1 else StratifiedKFold(n_splits=self.cv_folds, shuffle=True, random_state=42)
         try:
-            scores = cross_val_score(model, X_train, y_train,cv=self.cv_folds,scoring='roc_auc',n_jobs=1)
-            fitness = np.mean(scores)
+            scores = cross_val_score(model, X_train, y_train, cv=cv, scoring=self.objective_metric, n_jobs=-1)
+            fitness = float(np.mean(scores))
         except Exception as e:
-            self.logger.warning(f"Fitness evaluation failed: {e}")
+            self.logger.warning(f"Fitness evaluation failed: %s", e)
             fitness = 0.0
         return fitness
     def _tuna_swarm_phase(self,population: np.ndarray,best_position: np.ndarray,iteration: int) -> np.ndarray:

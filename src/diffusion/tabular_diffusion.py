@@ -26,6 +26,7 @@ class TabularDiffusion:
     def __init__(self, config: dict, logger: logging.Logger):
         self.config = config
         self.logger = logger
+        self.target_column = self.config['data'].get('target_column', 'Outcome')
         self.device = torch.device(config['diffusion']['device'])
         self.num_timesteps = config['diffusion']['num_timesteps'] #defines the no of diffusion steps ( folds taken for syntetic data generation)
         self.beta_start = config['diffusion']['beta_start'] #(influences later noise dynamics/intial val to noise generation)
@@ -140,7 +141,7 @@ class TabularDiffusion:
         df = pd.DataFrame(synthetic_data, columns=self.feature_names)
 
         if class_label is not None:
-            df['Outcome'] = class_label
+            df[self.target_column] = class_label
         self.logger.info(f"Generated {num_samples} synthetic samples")
         return df
     def generate_balanced(self,num_samples_per_class: int) -> pd.DataFrame:

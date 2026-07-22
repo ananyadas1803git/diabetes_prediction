@@ -25,7 +25,12 @@ class FeatureSelector:
         return selected
 
     def _count(self, n_features: int | None, feature_names: list[str]) -> int:
-        return min(n_features or self.config["feature_selection"]["n_features_to_select"], len(feature_names))
+        count = n_features if n_features is not None else self.config["feature_selection"]["n_features_to_select"]
+        if count is None or count == "all":
+            return len(feature_names)
+        if not isinstance(count, int):
+            raise ValueError("n_features_to_select must be int, None, or 'all'")
+        return min(count, len(feature_names))
 
     def mutual_information_selection(self, X, y, feature_names, n_features=None):
         scores = mutual_info_classif(X, y, random_state=self.config["data"]["random_state"])

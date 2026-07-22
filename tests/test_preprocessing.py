@@ -12,7 +12,7 @@ def config():
 @pytest.fixture
 def sample_data():
     np.random.seed(42)
-    data = {'Pregnancies': np.random.randint(0, 10, 100),'Glucose': np.random.randint(70, 200, 100),'BloodPressure': np.random.randint(50, 100, 100),'SkinThickness': np.random.randint(0, 50, 100),'Insulin': np.random.randint(0, 300, 100),'BMI': np.random.uniform(18, 40, 100),'DiabetesPedigreeFunction': np.random.uniform(0, 2, 100),'Age': np.random.randint(20, 70, 100),'Outcome': np.random.randint(0, 2, 100)}
+    data = {'Pregnancies': np.random.randint(0, 10, 100),'Glucose': np.random.randint(70, 200, 100),'BloodPressure': np.random.randint(50, 100, 100),'SkinThickness': np.random.randint(0, 50, 100),'Insulin': np.random.randint(0, 300, 100),'BMI': np.random.uniform(18, 40, 100),'DiabetesPedigreeFunction': np.random.uniform(0, 2, 100),'Age': np.random.randint(20, 70, 100),'Diabetes_binary': np.random.randint(0, 2, 100)}
     return pd.DataFrame(data)
 @pytest.fixture
 def preprocessor(config):
@@ -22,7 +22,7 @@ def preprocessor(config):
 def test_data_preprocessor_initialization(preprocessor):
     assert preprocessor is not None
     assert preprocessor.config is not None
-    assert preprocessor.target_column == "Outcome"
+    assert preprocessor.target_column == "Diabetes_binary"
 def test_handle_missing_values(preprocessor, sample_data):
     sample_data.loc[0:5, 'Glucose'] = 0
     sample_data.loc[10:15, 'BloodPressure'] = 0
@@ -41,7 +41,7 @@ def test_scale_features(preprocessor, sample_data):
     preprocessor.config['preprocessing']['scale_features'] = True
     result = preprocessor.scale_features(sample_data, fit=True)
     numeric_cols = result.select_dtypes(include=[np.number]).columns
-    numeric_cols = [col for col in numeric_cols if col != 'Outcome']
+    numeric_cols = [col for col in numeric_cols if col != preprocessor.target_column]
     for col in numeric_cols:
         assert abs(result[col].mean()) < 1.0
         assert abs(result[col].std() - 1.0) < 0.5

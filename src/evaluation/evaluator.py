@@ -36,6 +36,31 @@ class ModelEvaluator:
             "roc_auc": roc_auc_score(y_true, positive_probability),
         }
 
+    def find_best_threshold(self, y_true: np.ndarray, y_proba: np.ndarray, method: str = "youden", beta: float = 1.0) -> float:
+        probabilities = y_proba[:, 1]
+        if method == "youden":
+            fpr, tpr, thresholds = roc_curve(y_true, probabilities)
+            j_scores = tpr - fpr
+            best_index = int(np.argmax(j_scores))
+            return float(thresholds[best_index])
+
+        precision, recall, thresholds = precision_recall_curve(y_true, probabilities)
+        if method == "f1":
+            f1_scores = (2 * precision * recall) / np.clip(precision + recall, 1e-8, None)
+            best_index = int(np.nanargmax(f1_scores[:-1]))
+            return float(thresholds[best_index])
+
+        if method == "precision_recall":
+            f1_scores = (1 + beta**2) * (precision * recall) / np.clip((beta**2 * precision + recall), 1e-8, None)
+            best_index = int(np.nanargmax(f1_scores[:-1]))
+            return float(thresholds[best_index])
+
+        raise ValueError(f"Unsupported threshold method: {method}")
+
+    def metrics_at_threshold(self, y_true: np.ndarray, y_proba: np.ndarray, threshold: float) -> Dict[str, float]:
+        y_pred = (y_proba[:, 1] >= threshold).astype(int)
+        return self.compute_metrics(y_true, y_pred, y_proba)
+
     def evaluate_model(self, y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray, model_name: str = "Model") -> Dict[str, float]:
         metrics = self.compute_metrics(y_true, y_pred, y_proba)
         for name, value in metrics.items():

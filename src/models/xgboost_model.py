@@ -15,7 +15,7 @@ class XGBoostModel:
 
     def train(self, X_train: np.ndarray, y_train: np.ndarray, params: dict[str, Any] | None = None,
               feature_names: list[str] | None = None, eval_set: list[tuple[np.ndarray, np.ndarray]] | None = None,
-              early_stopping_rounds: int | None = None) -> XGBClassifier:
+              early_stopping_rounds: int | None = None, sample_weight: np.ndarray | None = None) -> XGBClassifier:
         self.feature_names = feature_names
         defaults = {
             "objective": "binary:logistic",
@@ -42,6 +42,8 @@ class XGBoostModel:
         if eval_set is not None:
             fit_params["eval_set"] = eval_set
             fit_params["verbose"] = False
+        if sample_weight is not None:
+            fit_params["sample_weight"] = sample_weight
         self.model.fit(X_train, y_train, **fit_params)
         return self.model
 

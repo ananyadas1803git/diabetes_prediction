@@ -83,16 +83,61 @@ def predict_via_api(features: dict):
             return None, f"API error ({response.status_code}): {detail}"
     except requests.RequestException as e:
         return None, f"Could not reach the API: {e}"
-def predict_locally(features: list, model, scaler, selector):
+def compute_derived_features(payload: dict[str, float | int]) -> dict[str, float | int]:
+    bmi = float(payload["BMI"])
+    age = float(payload["Age"])
+    bmi_category = int(np.digitize([bmi], [18.5, 24.9, 29.9])[0])
+    age_group = int(np.digitize([age], [30, 50, 65])[0])
+    metabolic_risk = int(
+        payload["HighBP"] + payload["HighChol"] + payload["HeartDiseaseorAttack"] + payload["Stroke"]
+    )
+    lifestyle_risk = int(
+        payload["Smoker"] + payload["HvyAlcoholConsump"] + payload["DiffWalk"]
+    )
+    healthy_habits = int(
+        payload["PhysActivity"] + payload["Fruits"] + payload["Veggies"]
+    )
+    return {
+        "BMI_category": bmi_category,
+        "Age_group": age_group,
+        "metabolic_risk": metabolic_risk,
+        "lifestyle_risk": lifestyle_risk,
+        "healthy_habits": healthy_habits,
+        "age_bmi_interaction": float(age * bmi),
+    }
+
+def build_feature_vector(payload: dict[str, float | int]) -> np.ndarray:
+    raw_features = [
+        "HighBP", "HighChol", "CholCheck", "BMI", "Smoker", "Stroke",
+        "HeartDiseaseorAttack", "PhysActivity", "Fruits", "Veggies",
+        "HvyAlcoholConsump", "AnyHealthcare", "NoDocbcCost", "GenHlth",
+        "MentHlth", "PhysHlth", "DiffWalk", "Sex", "Age", "Education", "Income",
+    ]
+    derived = compute_derived_features(payload)
+    feature_vector = [payload[name] for name in raw_features] + [derived[name] for name in [
+        "BMI_category", "Age_group", "metabolic_risk", "lifestyle_risk",
+        "healthy_habits", "age_bmi_interaction"
+    ]]
+    return np.array([feature_vector])
+
+def predict_locally(features: dict, model, scaler, selector):
     try:
-        features_array = np.array([features])
+        features_array = build_feature_vector(features)
         features_scaled = scaler.transform(features_array)
-        all_features = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
         selected = selector.selected_features
-        features_selected = features_scaled[:, [all_features.index(name) for name in selected]]
-        prediction = model.predict(features_selected)[0]
-        probability = model.predict_proba(features_selected)[0, 1]
-        
+        if selected:
+            indices = [
+                ['HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
+                 'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
+                 'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'GenHlth',
+                 'MentHlth', 'PhysHlth', 'DiffWalk', 'Sex', 'Age', 'Education', 'Income',
+                 'BMI_category', 'Age_group', 'metabolic_risk', 'lifestyle_risk',
+                 'healthy_habits', 'age_bmi_interaction'].index(name)
+                for name in selected
+            ]
+            features_scaled = features_scaled[:, indices]
+        prediction = model.predict(features_scaled)[0]
+        probability = model.predict_proba(features_scaled)[0, 1]
         return {
             "prediction": int(prediction),
             "probability": float(probability),
@@ -126,87 +171,61 @@ def main():
     if page == "Prediction":
         st.markdown('<h2 class="sub-header">Patient Information</h2>', unsafe_allow_html=True)
         with st.form("prediction_form"):
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
-                pregnancies = st.number_input(
-                    "Pregnancies", 
-                    min_value=0, 
-                    max_value=20, 
-                    value=1, 
-                    help="Number of times pregnant"
-                )
-                glucose = st.number_input(
-                    "Glucose (mg/dL)", 
-                    min_value=0, 
-                    max_value=300, 
-                    value=120,
-                    help="Plasma glucose concentration"
-                )
-                blood_pressure = st.number_input(
-                    "Blood Pressure (mm Hg)", 
-                    min_value=0, 
-                    max_value=200, 
-                    value=70,
-                    help="Diastolic blood pressure"
-                )
-                skin_thickness = st.number_input(
-                    "Skin Thickness (mm)", 
-                    min_value=0, 
-                    max_value=100, 
-                    value=20,
-                    help="Triceps skin fold thickness"
-                )
-            
+                high_bp = st.selectbox("High Blood Pressure", [0, 1], index=1, help="1 if the patient has high blood pressure")
+                high_chol = st.selectbox("High Cholesterol", [0, 1], index=1, help="1 if the patient has high cholesterol")
+                chol_check = st.selectbox("Cholesterol Check", [0, 1], index=1, help="1 if the patient has had a cholesterol check")
+                bmi = st.number_input("BMI", min_value=0.0, max_value=100.0, value=25.0, help="Body mass index")
+                smoker = st.selectbox("Smoker", [0, 1], index=0, help="1 if the patient smokes")
+                stroke = st.selectbox("Stroke History", [0, 1], index=0, help="1 if the patient has had a stroke")
             with col2:
-                insulin = st.number_input(
-                    "Insulin (mu U/ml)", 
-                    min_value=0, 
-                    max_value=900, 
-                    value=80,
-                    help="2-Hour serum insulin"
-                )
-                bmi = st.number_input(
-                    "BMI", 
-                    min_value=0.0, 
-                    max_value=70.0, 
-                    value=25.0,
-                    help="Body mass index"
-                )
-                dpf = st.number_input(
-                    "Diabetes Pedigree Function", 
-                    min_value=0.0, 
-                    max_value=3.0, 
-                    value=0.5,
-                    help="Diabetes pedigree function"
-                )
-                age = st.number_input(
-                    "Age (years)", 
-                    min_value=0, 
-                    max_value=120, 
-                    value=35,
-                    help="Age in years"
-                )
+                heart_disease_or_attack = st.selectbox("Heart Disease or Attack", [0, 1], index=0, help="1 if the patient has heart disease or attack history")
+                phys_activity = st.selectbox("Physical Activity", [0, 1], index=1, help="1 if the patient is physically active")
+                fruits = st.selectbox("Fruits", [0, 1], index=1, help="1 if the patient eats fruits regularly")
+                veggies = st.selectbox("Veggies", [0, 1], index=1, help="1 if the patient eats vegetables regularly")
+                hvy_alcohol_consump = st.selectbox("Heavy Alcohol Consumption", [0, 1], index=0, help="1 if the patient consumes alcohol heavily")
+                any_healthcare = st.selectbox("Has Healthcare", [0, 1], index=1, help="1 if the patient has any healthcare coverage")
+            with col3:
+                no_doc_bc_cost = st.selectbox("No Doctor Because of Cost", [0, 1], index=0, help="1 if the patient cannot see a doctor because of cost")
+                gen_hlth = st.number_input("General Health (1-5)", min_value=1, max_value=5, value=3, help="General health rating")
+                ment_hlth = st.number_input("Poor Mental Health Days", min_value=0, max_value=30, value=5, help="Number of days mental health was not good")
+                phys_hlth = st.number_input("Poor Physical Health Days", min_value=0, max_value=30, value=2, help="Number of days physical health was not good")
+                diff_walk = st.selectbox("Difficulty Walking", [0, 1], index=0, help="1 if the patient has difficulty walking")
+                sex = st.selectbox("Sex", [0, 1], index=1, help="0 or 1 gender encoding")
+                age = st.number_input("Age (years)", min_value=0, max_value=120, value=45, help="Age in years")
+                education = st.number_input("Education Level", min_value=0, max_value=6, value=4, help="Education level encoding")
+                income = st.number_input("Income Level", min_value=0, max_value=8, value=4, help="Income level encoding")
             submitted = st.form_submit_button("Predict Diabetes Risk", use_container_width=True)
         if submitted:
             st.markdown('<h2 class="sub-header">Prediction Results</h2>', unsafe_allow_html=True)
+            features = {
+                "HighBP": int(high_bp),
+                "HighChol": int(high_chol),
+                "CholCheck": int(chol_check),
+                "BMI": float(bmi),
+                "Smoker": int(smoker),
+                "Stroke": int(stroke),
+                "HeartDiseaseorAttack": int(heart_disease_or_attack),
+                "PhysActivity": int(phys_activity),
+                "Fruits": int(fruits),
+                "Veggies": int(veggies),
+                "HvyAlcoholConsump": int(hvy_alcohol_consump),
+                "AnyHealthcare": int(any_healthcare),
+                "NoDocbcCost": int(no_doc_bc_cost),
+                "GenHlth": int(gen_hlth),
+                "MentHlth": int(ment_hlth),
+                "PhysHlth": int(phys_hlth),
+                "DiffWalk": int(diff_walk),
+                "Sex": int(sex),
+                "Age": int(age),
+                "Education": int(education),
+                "Income": int(income),
+            }
             if use_api and api_available:
-                features = {
-                    "pregnancies": int(pregnancies),
-                    "glucose": float(glucose),
-                    "blood_pressure": float(blood_pressure),
-                    "skin_thickness": float(skin_thickness),
-                    "insulin": float(insulin),
-                    "bmi": float(bmi),
-                    "diabetes_pedigree_function": float(dpf),
-                    "age": int(age)
-                }
                 result, error = predict_via_api(features)
             else:
-                features_list = [
-                    pregnancies, glucose, blood_pressure, skin_thickness,
-                    insulin, bmi, dpf, age
-                ]
-                result = predict_locally(features_list, model, scaler, selector)
+                result = predict_locally(features, model, scaler, selector)
                 error = "Local prediction failed; ensure the model and preprocessing artifacts were created together."
             if result:
                 prediction = result["prediction"]

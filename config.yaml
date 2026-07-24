@@ -28,13 +28,18 @@ model:
   early_stopping_rounds: 10
   validation_fraction: 0.1
   use_all_features_for_final_model: false
+  use_class_weight: true
+  class_weight: balanced
+  calibration:
+    enabled: true
+    method: sigmoid
 
 evaluation:
   plots_path: outputs/evaluation
   save_plots: true
   validation_cv_folds: 5
   threshold_method: precision_recall
-  threshold_beta: 0.5
+  threshold_beta: 0.25
   validate_feature_selection: true
   auto_select_feature_set: true
 
@@ -54,7 +59,7 @@ diffusion:
 
 optimization:
   optimizer_type: optuna
-  objective_metric: average_precision
+  objective_metric: precision
   population_size: 25
   max_iterations: 40
   early_stopping_rounds: 8

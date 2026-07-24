@@ -20,7 +20,17 @@ app.add_middleware(
 model = None
 scaler = None
 feature_selector = None
-feature_names = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness','Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+RAW_FEATURES = [
+    "HighBP", "HighChol", "CholCheck", "BMI", "Smoker", "Stroke",
+    "HeartDiseaseorAttack", "PhysActivity", "Fruits", "Veggies",
+    "HvyAlcoholConsump", "AnyHealthcare", "NoDocbcCost", "GenHlth",
+    "MentHlth", "PhysHlth", "DiffWalk", "Sex", "Age", "Education", "Income",
+]
+DERIVED_FEATURES = [
+    "BMI_category", "Age_group", "metabolic_risk", "lifestyle_risk",
+    "healthy_habits", "age_bmi_interaction"
+]
+FEATURE_NAMES = RAW_FEATURES + DERIVED_FEATURES
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 def load_model_and_dependencies() -> None:
@@ -70,12 +80,45 @@ async def get_model_info():
         'reg_alpha': params.get('reg_alpha'),
         'reg_lambda': params.get('reg_lambda')
     }
+    features = FEATURE_NAMES
+    if feature_selector is not None and getattr(feature_selector, "selected_features", None) is not None:
+        features = feature_selector.selected_features
     return ModelInfoResponse(
         model_type="XGBoost Classifier",
-        features=feature_names,
+        features=features,
         hyperparameters=hyperparameters,
         performance_metrics={
             "note": "Performance metrics should be loaded from evaluation results"})
+def compute_derived_features(payload: dict[str, float | int]) -> dict[str, float | int]:
+    bmi = float(payload["BMI"])
+    age = float(payload["Age"])
+    bmi_category = int(np.digitize([bmi], [18.5, 24.9, 29.9])[0])
+    age_group = int(np.digitize([age], [30, 50, 65])[0])
+    metabolic_risk = int(
+        payload["HighBP"] + payload["HighChol"] + payload["HeartDiseaseorAttack"] + payload["Stroke"]
+    )
+    lifestyle_risk = int(
+        payload["Smoker"] + payload["HvyAlcoholConsump"] + payload["DiffWalk"]
+    )
+    healthy_habits = int(
+        payload["PhysActivity"] + payload["Fruits"] + payload["Veggies"]
+    )
+    return {
+        "BMI_category": bmi_category,
+        "Age_group": age_group,
+        "metabolic_risk": metabolic_risk,
+        "lifestyle_risk": lifestyle_risk,
+        "healthy_habits": healthy_habits,
+        "age_bmi_interaction": float(age * bmi),
+    }
+
+
+def build_feature_vector(payload: dict[str, float | int]) -> np.ndarray:
+    derived = compute_derived_features(payload)
+    feature_vector = [payload[name] for name in RAW_FEATURES] + [derived[name] for name in DERIVED_FEATURES]
+    return np.array([feature_vector])
+
+
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(request: PredictionRequest):
     if model is None:
@@ -83,22 +126,36 @@ async def predict(request: PredictionRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Model not loaded. Please ensure the model is trained and saved.")
     try:
-        features = np.array([[
-            request.pregnancies,
-            request.glucose,
-            request.blood_pressure,
-            request.skin_thickness,
-            request.insulin,
-            request.bmi,
-            request.diabetes_pedigree_function,
-            request.age
-        ]])
+        payload = {
+            "HighBP": request.HighBP,
+            "HighChol": request.HighChol,
+            "CholCheck": request.CholCheck,
+            "BMI": request.BMI,
+            "Smoker": request.Smoker,
+            "Stroke": request.Stroke,
+            "HeartDiseaseorAttack": request.HeartDiseaseorAttack,
+            "PhysActivity": request.PhysActivity,
+            "Fruits": request.Fruits,
+            "Veggies": request.Veggies,
+            "HvyAlcoholConsump": request.HvyAlcoholConsump,
+            "AnyHealthcare": request.AnyHealthcare,
+            "NoDocbcCost": request.NoDocbcCost,
+            "GenHlth": request.GenHlth,
+            "MentHlth": request.MentHlth,
+            "PhysHlth": request.PhysHlth,
+            "DiffWalk": request.DiffWalk,
+            "Sex": request.Sex,
+            "Age": request.Age,
+            "Education": request.Education,
+            "Income": request.Income,
+        }
+        features = build_feature_vector(payload)
         if scaler is not None:
             features = scaler.transform(features)
         if feature_selector is not None:
             selected = getattr(feature_selector, "selected_features", None)
             if selected:
-                indices = [feature_names.index(name) for name in selected]
+                indices = [FEATURE_NAMES.index(name) for name in selected]
                 features = features[:, indices]
         prediction = model.predict(features)[0]
         probability = model.predict_proba(features)[0, 1]
@@ -116,7 +173,7 @@ async def predict(request: PredictionRequest):
             confidence=confidence)
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"Prediction failed: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Prediction failed: {str(e)}")
 @app.get("/")
 async def root():
     return {

@@ -18,6 +18,8 @@ import argparse
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.calibration import CalibratedClassifierCV
 sys.path.insert(0, str(Path(__file__).parent))
 from src.utils.config import load_config
 from src.utils.logger import setup_logger
@@ -168,13 +170,29 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
         stratify=y_train_final
     )
     early_stopping_rounds = config['model'].get('early_stopping_rounds', 10)
+    sample_weight = None
+    if config['model'].get('use_class_weight', False):
+        class_weight = config['model'].get('class_weight', 'balanced')
+        sample_weight = compute_sample_weight(class_weight, y_train_fit)
+        logger.info(f"Using class-weighted sample weights with strategy={class_weight}")
     model = xgboost_model.train(
         X_train_fit, y_train_fit,
         params=best_params,
         feature_names=selected_features,
         eval_set=[(X_val_fit, y_val_fit)],
-        early_stopping_rounds=early_stopping_rounds
+        early_stopping_rounds=early_stopping_rounds,
+        sample_weight=sample_weight
     )
+
+    if config['model'].get('calibration', {}).get('enabled', False):
+        calibration_method = config['model']['calibration'].get('method', 'sigmoid')
+        logger.info(f"Calibrating model probabilities using {calibration_method}")
+        calibrator = CalibratedClassifierCV(estimator=model, method=calibration_method, cv='prefit')
+        calibrator.fit(X_val_fit, y_val_fit)
+        model = calibrator
+        logger.info("Calibration completed")
+
+    xgboost_model.model = model
     xgboost_model.save_model(config['model']['save_path'])
     if preprocessor.scaler is not None:
         import joblib

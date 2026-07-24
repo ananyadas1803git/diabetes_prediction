@@ -73,6 +73,6 @@ class OptunaXGBoostOptimizer:
         neg_count = int(np.sum(y_train == 0))
         best_params['scale_pos_weight'] = float(neg_count) / pos_count if pos_count > 0 else 1.0
 
-        self.logger.info(f"Optuna completed. Best ROC-AUC: {study.best_value:.4f}")
+        self.logger.info(f"Optuna completed. Best {self.objective_metric}: {study.best_value:.4f}")
         self.logger.info(f"Best parameters: {best_params}")
         return best_params

@@ -25,6 +25,9 @@ class TSOHBAOptimizer:
         self.best_solution = None
         self.best_fitness = -np.inf
         self.convergence_history = []
+        self.tso_convergence_history = []
+        self.hba_convergence_history = []
+        self.phase_history = []
         self.no_improvement_count = 0
     def _initialize_population(self) -> np.ndarray:
         population = []
@@ -112,6 +115,9 @@ class TSOHBAOptimizer:
         self.logger.info("Starting TSO-HBA optimization")
         self.no_improvement_count = 0
         self.convergence_history = []
+        self.tso_convergence_history = []
+        self.hba_convergence_history = []
+        self.phase_history = []
         population = self._initialize_population()
         fitness_scores = []
         for individual in population:
@@ -127,6 +133,7 @@ class TSOHBAOptimizer:
         for iteration in tqdm(range(self.max_iterations), desc="Optimization Progress"):
             # Adaptive phase selection
             phase = self._adaptive_switching(iteration, best_fitness, previous_fitness)
+            self.phase_history.append(phase)
             if phase == 'tso':
                 population = self._tuna_swarm_phase(population, self.best_solution, iteration)
             else:
@@ -143,11 +150,18 @@ class TSOHBAOptimizer:
                 self.best_fitness = best_fitness
                 self.best_solution = population[current_best_idx].copy()
                 self.no_improvement_count = 0
-                self.logger.info(f"Iteration {iteration + 1}: New best fitness: {best_fitness:.4f}")
+                self.logger.info(f"Iteration {iteration + 1}: New best fitness: {best_fitness:.4f} (Phase: {phase.upper()})")
             else:
                 self.no_improvement_count += 1
             fitness_scores = new_fitness_scores
             self.convergence_history.append(best_fitness)
+            # Track phase-specific convergence
+            if phase == 'tso':
+                self.tso_convergence_history.append(best_fitness)
+                self.hba_convergence_history.append(None)  # Placeholder for HBA phase
+            else:
+                self.hba_convergence_history.append(best_fitness)
+                self.tso_convergence_history.append(None)  # Placeholder for TSO phase
             previous_fitness = best_fitness
             if self.no_improvement_count >= self.early_stopping_rounds:
                 self.logger.info(f"Early stopping at iteration {iteration + 1}")
@@ -155,6 +169,8 @@ class TSOHBAOptimizer:
         best_params = self._decode_solution(self.best_solution)
         self.logger.info(f"Optimization completed. Best fitness: {best_fitness:.4f}")
         self.logger.info(f"Best parameters: {best_params}")
+        self.logger.info(f"TSO phases used: {sum(1 for p in self.phase_history if p == 'tso')}")
+        self.logger.info(f"HBA phases used: {sum(1 for p in self.phase_history if p == 'hba')}")
         return best_params
     def get_convergence_history(self) -> List[float]:
         return self.convergence_history
@@ -184,3 +200,85 @@ class TSOHBAOptimizer:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close()
         self.logger.info(f"TSO-HBA convergence curve saved to {save_path}")
+    
+    def plot_tso_convergence_curve(self, save_path: str = "results/tso_convergence_curve.png") -> None:
+        """Plot and save the TSO phase convergence curve."""
+        if not self.tso_convergence_history:
+            raise ValueError("No TSO convergence history available. Run optimization first.")
+        
+        self.logger.info("Generating TSO convergence curve plot")
+        # Filter out None values and get iteration numbers
+        tso_iterations = [i+1 for i, val in enumerate(self.tso_convergence_history) if val is not None]
+        tso_values = [val for val in self.tso_convergence_history if val is not None]
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(tso_iterations, tso_values, 
+                 linewidth=2, color='darkblue', marker='o', markersize=4, label='TSO Phase')
+        plt.xlabel('Iteration', fontsize=12)
+        plt.ylabel('Best Fitness Score', fontsize=12)
+        plt.title('TSO Phase Convergence Curve', fontsize=14, fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        self.logger.info(f"TSO convergence curve saved to {save_path}")
+    
+    def plot_hba_convergence_curve(self, save_path: str = "results/hba_convergence_curve.png") -> None:
+        """Plot and save the HBA phase convergence curve."""
+        if not self.hba_convergence_history:
+            raise ValueError("No HBA convergence history available. Run optimization first.")
+        
+        self.logger.info("Generating HBA convergence curve plot")
+        # Filter out None values and get iteration numbers
+        hba_iterations = [i+1 for i, val in enumerate(self.hba_convergence_history) if val is not None]
+        hba_values = [val for val in self.hba_convergence_history if val is not None]
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(hba_iterations, hba_values, 
+                 linewidth=2, color='darkorange', marker='s', markersize=4, label='HBA Phase')
+        plt.xlabel('Iteration', fontsize=12)
+        plt.ylabel('Best Fitness Score', fontsize=12)
+        plt.title('HBA Phase Convergence Curve', fontsize=14, fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        self.logger.info(f"HBA convergence curve saved to {save_path}")
+    
+    def plot_combined_convergence_curves(self, save_path: str = "results/combined_convergence_curve.png") -> None:
+        """Plot and save combined TSO and HBA phase convergence curves."""
+        if not self.convergence_history:
+            raise ValueError("No convergence history available. Run optimization first.")
+        
+        self.logger.info("Generating combined convergence curve plot")
+        
+        # Get TSO data
+        tso_iterations = [i+1 for i, val in enumerate(self.tso_convergence_history) if val is not None]
+        tso_values = [val for val in self.tso_convergence_history if val is not None]
+        
+        # Get HBA data
+        hba_iterations = [i+1 for i, val in enumerate(self.hba_convergence_history) if val is not None]
+        hba_values = [val for val in self.hba_convergence_history if val is not None]
+        
+        plt.figure(figsize=(12, 6))
+        plt.plot(tso_iterations, tso_values, 
+                 linewidth=2, color='darkblue', marker='o', markersize=4, label='TSO Phase')
+        plt.plot(hba_iterations, hba_values, 
+                 linewidth=2, color='darkorange', marker='s', markersize=4, label='HBA Phase')
+        plt.xlabel('Iteration', fontsize=12)
+        plt.ylabel('Best Fitness Score', fontsize=12)
+        plt.title('TSO-HBA Combined Convergence Curves', fontsize=14, fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        self.logger.info(f"Combined convergence curve saved to {save_path}")

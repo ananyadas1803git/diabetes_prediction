@@ -157,9 +157,11 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
     logger.info("=" * 80)
     best_params = optimizer.optimize(X_train_selected, y_train_final)
     
-    # Save convergence curve for TSO-HBA optimizer
+    # Save convergence curves for TSO-HBA optimizer
     if optimizer_type == 'tso_hba':
-        optimizer.plot_convergence_curve(save_path="results/tso_convergence_curve.png")
+        optimizer.plot_tso_convergence_curve(save_path="results/tso_convergence_curve.png")
+        optimizer.plot_hba_convergence_curve(save_path="results/hba_convergence_curve.png")
+        optimizer.plot_combined_convergence_curves(save_path="results/combined_convergence_curve.png")
     else:
         # For Optuna, we can plot the optimization history
         try:

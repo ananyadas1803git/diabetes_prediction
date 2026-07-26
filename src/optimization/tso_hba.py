@@ -5,6 +5,10 @@ from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold, St
 from typing import Dict, Any, List, Tuple
 import logging
 from tqdm import tqdm
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from pathlib import Path
 class TSOHBAOptimizer:
     def __init__(self, config: Dict[str, Any], logger: logging.Logger):
         self.config = config
@@ -159,3 +163,24 @@ class TSOHBAOptimizer:
             raise ValueError("Optimization not performed yet")
         
         return self._decode_solution(self.best_solution)
+    
+    def plot_convergence_curve(self, save_path: str = "results/tso_convergence_curve.png") -> None:
+        """Plot and save the convergence curve for TSO-HBA optimization."""
+        if not self.convergence_history:
+            raise ValueError("No convergence history available. Run optimization first.")
+        
+        self.logger.info("Generating TSO-HBA convergence curve plot")
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, len(self.convergence_history) + 1), self.convergence_history, 
+                 linewidth=2, color='steelblue', marker='o', markersize=4)
+        plt.xlabel('Iteration', fontsize=12)
+        plt.ylabel('Best Fitness Score', fontsize=12)
+        plt.title('TSO-HBA Optimization Convergence Curve', fontsize=14, fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        
+        # Create directory if it doesn't exist
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        self.logger.info(f"TSO-HBA convergence curve saved to {save_path}")

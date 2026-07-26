@@ -14,7 +14,7 @@ class ModelEvaluator:
     def __init__(self, config: Dict[str, Any], logger: Any):
         self.config = config
         self.logger = logger
-        self.plots_path = Path(self.config["evaluation"]["plots_path"])
+        self.plots_path = Path("results")  # Changed to save to results folder
         self.plots_path.mkdir(parents=True, exist_ok=True)
         sns.set_style("whitegrid")
         plt.rcParams["figure.figsize"] = (12, 8)

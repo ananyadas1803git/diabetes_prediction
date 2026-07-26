@@ -156,6 +156,16 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
         optimizer = TSOHBAOptimizer(config, logger)
     logger.info("=" * 80)
     best_params = optimizer.optimize(X_train_selected, y_train_final)
+    
+    # Save convergence curve for TSO-HBA optimizer
+    if optimizer_type == 'tso_hba':
+        optimizer.plot_convergence_curve(save_path="results/tso_convergence_curve.png")
+    else:
+        # For Optuna, we can plot the optimization history
+        try:
+            optimizer.plot_optimization_history(save_path="results/hba_convergence_curve.png")
+        except:
+            logger.info("Could not plot Optuna optimization history")
     if "scale_pos_weight" not in best_params:
         best_params["scale_pos_weight"] = float(np.sum(y_train_final == 0)) / float(np.sum(y_train_final == 1)) if np.sum(y_train_final == 1) else 1.0
     logger.info("\n" + "=" * 80)

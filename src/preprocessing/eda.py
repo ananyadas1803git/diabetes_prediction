@@ -15,7 +15,7 @@ class EDAAnalyzer:
     def __init__(self, config: dict[str, Any], logger: Any):
         self.logger = logger
         self.target_column = config["data"].get("target_column", "Outcome")
-        self.plots_path = Path(config["evaluation"]["plots_path"])
+        self.plots_path = Path("results")  # Changed to save to results folder
         self.plots_path.mkdir(parents=True, exist_ok=True)
 
     def _save(self, name: str):

@@ -12,7 +12,7 @@ class SHAPExplainer:
     def __init__(self, config: Dict[str, Any], logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.save_path = Path(config['explainability']['save_path'])
+        self.save_path = Path("results")  # Changed to save to results folder
         self.save_path.mkdir(parents=True, exist_ok=True)
         self.explainer = None
         self.shap_values = None

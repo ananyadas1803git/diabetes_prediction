@@ -20,7 +20,12 @@ class SHAPExplainer:
     def fit(self,model,X_train: np.ndarray,feature_names: Optional[list] = None) -> None:
         self.logger.info("Fitting SHAP explainer")
         self.feature_names = feature_names
-        self.explainer = shap.TreeExplainer(model)
+        if hasattr(model,"estimator"):
+            base_model = model.estimator
+            self.logger.info("using base model from CalibratedClassifierCV for SHAP explainer")
+        else:
+            base_model = model
+        self.explainer = shap.TreeExplainer(base_model)
         num_samples = self.config['explainability']['num_samples']
         if len(X_train) > num_samples:
             X_sample = X_train[:num_samples]

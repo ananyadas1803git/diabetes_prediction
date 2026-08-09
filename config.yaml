@@ -35,10 +35,10 @@ model:
     method: sigmoid
 
 evaluation:
-  plots_path: outputs/evaluation
+  plots_path: results
   save_plots: true
   validation_cv_folds: 5
-  threshold_method: precision_recall
+  threshold_method: youden
   threshold_beta: 0.25
   validate_feature_selection: true
   auto_select_feature_set: true
@@ -59,7 +59,7 @@ diffusion:
 
 optimization:
   optimizer_type: optuna
-  objective_metric: precision
+  objective_metric: f1
   population_size: 25
   max_iterations: 40
   early_stopping_rounds: 8

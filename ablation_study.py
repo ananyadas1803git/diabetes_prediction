@@ -32,13 +32,14 @@ def save_config(config: dict, config_path: str) -> None:
 
 
 def run_xgboost_only(config: dict) -> dict:
-    """Configuration 1: XGBoost Only (no diffusion, no optimization)"""
+    """Configuration 1: XGBoost Only (no augmentation, no optimization)"""
     print("\n" + "="*80)
     print("ABLATION STUDY - Configuration 1: XGBoost Only")
     print("="*80)
     
-    # Disable diffusion
+    # Disable all augmentation
     config['diffusion']['use_synthetic_augmentation'] = False
+    config['data']['augmentation_method'] = 'none'
     
     # Use default XGBoost parameters (no optimization)
     config['optimization']['optimizer_type'] = 'default'
@@ -68,6 +69,7 @@ def run_diffusion_xgboost(config: dict) -> dict:
     
     # Enable diffusion
     config['diffusion']['use_synthetic_augmentation'] = True
+    config['data']['augmentation_method'] = 'diffusion'
     
     # Use default XGBoost parameters (no optimization)
     config['optimization']['optimizer_type'] = 'default'
@@ -83,6 +85,66 @@ def run_diffusion_xgboost(config: dict) -> dict:
     except Exception as e:
         print(f"Error in Diffusion + XGBoost: {e}")
         return {"status": "failed", "config": "Diffusion + XGBoost", "error": str(e)}
+    finally:
+        # Cleanup
+        if Path(temp_config).exists():
+            Path(temp_config).unlink()
+
+
+def run_smote_xgboost(config: dict) -> dict:
+    """Configuration 3: SMOTE + XGBoost (with SMOTE, no optimization)"""
+    print("\n" + "="*80)
+    print("ABLATION STUDY - Configuration 3: SMOTE + XGBoost")
+    print("="*80)
+    
+    # Disable diffusion, enable SMOTE
+    config['diffusion']['use_synthetic_augmentation'] = False
+    config['data']['augmentation_method'] = 'smote'
+    
+    # Use default XGBoost parameters (no optimization)
+    config['optimization']['optimizer_type'] = 'default'
+    
+    # Save temporary config
+    temp_config = "config_smote_xgboost.yaml"
+    save_config(config, temp_config)
+    
+    try:
+        # Run pipeline
+        run_pipeline(config_path=temp_config, run_baselines=False, optimizer_override='default')
+        return {"status": "success", "config": "SMOTE + XGBoost"}
+    except Exception as e:
+        print(f"Error in SMOTE + XGBoost: {e}")
+        return {"status": "failed", "config": "SMOTE + XGBoost", "error": str(e)}
+    finally:
+        # Cleanup
+        if Path(temp_config).exists():
+            Path(temp_config).unlink()
+
+
+def run_adasyn_xgboost(config: dict) -> dict:
+    """Configuration 4: ADASYN + XGBoost (with ADASYN, no optimization)"""
+    print("\n" + "="*80)
+    print("ABLATION STUDY - Configuration 4: ADASYN + XGBoost")
+    print("="*80)
+    
+    # Disable diffusion, enable ADASYN
+    config['diffusion']['use_synthetic_augmentation'] = False
+    config['data']['augmentation_method'] = 'adasyn'
+    
+    # Use default XGBoost parameters (no optimization)
+    config['optimization']['optimizer_type'] = 'default'
+    
+    # Save temporary config
+    temp_config = "config_adasyn_xgboost.yaml"
+    save_config(config, temp_config)
+    
+    try:
+        # Run pipeline
+        run_pipeline(config_path=temp_config, run_baselines=False, optimizer_override='default')
+        return {"status": "success", "config": "ADASYN + XGBoost"}
+    except Exception as e:
+        print(f"Error in ADASYN + XGBoost: {e}")
+        return {"status": "failed", "config": "ADASYN + XGBoost", "error": str(e)}
     finally:
         # Cleanup
         if Path(temp_config).exists():
@@ -126,13 +188,13 @@ def collect_results() -> pd.DataFrame:
     # For now, we'll create a structure that can be filled manually or via log parsing
     
     results = {
-        "Configuration": ["XGBoost Only", "Diffusion + XGBoost", "TSO-HBA + XGBoost"],
-        "Accuracy": [None, None, None],
-        "Precision": [None, None, None],
-        "Recall": [None, None, None],
-        "F1": [None, None, None],
-        "ROC-AUC": [None, None, None],
-        "Status": ["pending", "pending", "pending"]
+        "Configuration": ["XGBoost Only", "Diffusion + XGBoost", "SMOTE + XGBoost", "ADASYN + XGBoost", "TSO-HBA + XGBoost"],
+        "Accuracy": [None, None, None, None, None],
+        "Precision": [None, None, None, None, None],
+        "Recall": [None, None, None, None, None],
+        "F1": [None, None, None, None, None],
+        "ROC-AUC": [None, None, None, None, None],
+        "Status": ["pending", "pending", "pending", "pending", "pending"]
     }
     
     return pd.DataFrame(results)
@@ -153,7 +215,7 @@ def main(config_path: str = "config.yaml", configurations: list = None):
     
     # Define configurations to run
     if configurations is None:
-        configurations = ["xgboost_only", "diffusion_xgboost", "tso_hba_xgboost"]
+        configurations = ["xgboost_only", "diffusion_xgboost", "smote_xgboost", "adasyn_xgboost", "tso_hba_xgboost"]
     
     # Track results
     study_results = []
@@ -164,6 +226,10 @@ def main(config_path: str = "config.yaml", configurations: list = None):
             result = run_xgboost_only(config.copy())
         elif config_name == "diffusion_xgboost":
             result = run_diffusion_xgboost(config.copy())
+        elif config_name == "smote_xgboost":
+            result = run_smote_xgboost(config.copy())
+        elif config_name == "adasyn_xgboost":
+            result = run_adasyn_xgboost(config.copy())
         elif config_name == "tso_hba_xgboost":
             result = run_tso_hba_xgboost(config.copy(), optimizer_type='tso_hba')
         elif config_name == "optuna_xgboost":
@@ -201,8 +267,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ablation Study for Diabetes Prediction")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to configuration file")
     parser.add_argument("--configs", type=str, nargs='+', 
-                       choices=["xgboost_only", "diffusion_xgboost", "tso_hba_xgboost", "optuna_xgboost"],
-                       default=["xgboost_only", "diffusion_xgboost", "tso_hba_xgboost"],
+                       choices=["xgboost_only", "diffusion_xgboost", "smote_xgboost", "adasyn_xgboost", "tso_hba_xgboost", "optuna_xgboost"],
+                       default=["xgboost_only", "diffusion_xgboost", "smote_xgboost", "adasyn_xgboost"],
                        help="Configurations to run")
     
     args = parser.parse_args()

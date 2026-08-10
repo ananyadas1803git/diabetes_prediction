@@ -26,6 +26,7 @@ from src.utils.logger import setup_logger
 from src.utils.seed import set_seed
 from src.preprocessing.preprocessor import DataPreprocessor
 from src.preprocessing.eda import EDAAnalyzer
+from src.preprocessing.data_augmentation import DataAugmentation
 from src.diffusion.tabular_diffusion import TabularDiffusion
 from src.feature_selection.feature_selector import FeatureSelector
 from src.optimization.tso_hba import TSOHBAOptimizer
@@ -71,11 +72,14 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
     eda_analyzer = EDAAnalyzer(config, logger)
     eda_analyzer.run_full_eda(train_df)
     logger.info("\n" + "=" * 80)
-    logger.info("STEP 3: Tabular Diffusion Data Augmentation")
+    logger.info("STEP 3: Data Augmentation")
     logger.info("=" * 80)
-    diffusion_model = TabularDiffusion(config, logger)
-    if config['diffusion'].get('use_synthetic_augmentation', False):
-        synthetic_train_data = X_train
+    
+    augmentation_method = config['data'].get('augmentation_method', 'diffusion')
+    
+    if augmentation_method == 'diffusion' and config['diffusion'].get('use_synthetic_augmentation', False):
+        logger.info("Using Tabular Diffusion for data augmentation")
+        diffusion_model = TabularDiffusion(config, logger)
         if config['diffusion'].get('generate_positive_synthetic_only', False):
             synthetic_train_data = X_train[y_train == 1]
             logger.info(
@@ -95,6 +99,14 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
         X_train_final, y_train_final = preprocessor.rebalance_data(X_train_augmented, y_train_augmented)
         logger.info(
             f"Using augmented training data: {X_train.shape[0]} original + {synthetic_df.shape[0]} synthetic = {X_train_final.shape[0]} total"
+        )
+    elif augmentation_method in ['smote', 'adasyn']:
+        logger.info(f"Using {augmentation_method.upper()} for data augmentation")
+        data_augmenter = DataAugmentation(config, logger)
+        X_train_augmented, y_train_augmented = data_augmenter.fit_transform(X_train, y_train, feature_names)
+        X_train_final, y_train_final = preprocessor.rebalance_data(X_train_augmented, y_train_augmented)
+        logger.info(
+            f"Using augmented training data: {X_train.shape[0]} original + {X_train_augmented.shape[0] - X_train.shape[0]} synthetic = {X_train_final.shape[0]} total"
         )
     else:
         logger.info("Skipping synthetic data augmentation.")

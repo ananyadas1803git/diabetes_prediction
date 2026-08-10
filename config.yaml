@@ -7,6 +7,9 @@ data:
   target_column: Diabetes_binary
   rebalance_strategy: oversample_minority
   oversample_target_ratio: 1.0
+  augmentation_method: diffusion  # Options: diffusion, smote, adasyn, none
+  smote_k_neighbors: 5
+  adasyn_n_neighbors: 5
 
 preprocessing:
   handle_missing: true

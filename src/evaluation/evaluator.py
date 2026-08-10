@@ -36,12 +36,14 @@ class ModelEvaluator:
             "roc_auc": roc_auc_score(y_true, positive_probability),
         }
 
-    def find_best_threshold(self, y_true: np.ndarray, y_proba: np.ndarray, method: str = "youden", beta: float = 1.0) -> float:
-        probabilities = y_proba[:, 1]
+    def find_best_threshold(self, y_true: np.ndarray, probabilities: np.ndarray, method: str = "youden", beta: float = 1.0) -> float:
+        if method == "fixed":
+            return float(self.config["evaluation"].get("fixed_threshold", 0.5))
+        
+        fpr, tpr, thresholds = roc_curve(y_true, probabilities)
         if method == "youden":
-            fpr, tpr, thresholds = roc_curve(y_true, probabilities)
-            j_scores = tpr - fpr
-            best_index = int(np.argmax(j_scores))
+            youden_j = tpr - fpr
+            best_index = int(np.argmax(youden_j))
             return float(thresholds[best_index])
 
         precision, recall, thresholds = precision_recall_curve(y_true, probabilities)

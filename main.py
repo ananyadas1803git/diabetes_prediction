@@ -148,26 +148,33 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
 
     logger.info("\n" + "=" * 80)
     optimizer_type = config['optimization'].get('optimizer_type', 'tso_hba')
-    if optimizer_type == 'optuna':
+    if optimizer_type == 'default':
+        logger.info("STEP 5: Using Default XGBoost Parameters (No Optimization)")
+        logger.info("=" * 80)
+        # Use default XGBoost parameters
+        best_params = {
+            'max_depth': 6,
+            'learning_rate': 0.1,
+            'n_estimators': 100,
+            'gamma': 0.0,
+            'min_child_weight': 1,
+            'subsample': 1.0,
+            'colsample_bytree': 1.0,
+            'reg_alpha': 0.0,
+            'reg_lambda': 1.0
+        }
+        logger.info(f"Using default parameters: {best_params}")
+    elif optimizer_type == 'optuna':
         logger.info("STEP 5: Optuna Hyperparameter Optimization")
         optimizer = OptunaXGBoostOptimizer(config, logger)
+        logger.info("=" * 80)
+        best_params = optimizer.optimize(X_train_selected, y_train_final)
     else:
         logger.info("STEP 5: TSO-HBA Hyperparameter Optimization")
         optimizer = TSOHBAOptimizer(config, logger)
-    logger.info("=" * 80)
-    best_params = optimizer.optimize(X_train_selected, y_train_final)
+        logger.info("=" * 80)
+        best_params = optimizer.optimize(X_train_selected, y_train_final)
     
-    # Save convergence curves for TSO-HBA optimizer
-    if optimizer_type == 'tso_hba':
-        optimizer.plot_tso_convergence_curve(save_path="results/tso_convergence_curve.png")
-        optimizer.plot_hba_convergence_curve(save_path="results/hba_convergence_curve.png")
-        optimizer.plot_combined_convergence_curves(save_path="results/combined_convergence_curve.png")
-    else:
-        # For Optuna, we can plot the optimization history
-        try:
-            optimizer.plot_optimization_history(save_path="results/hba_convergence_curve.png")
-        except:
-            logger.info("Could not plot Optuna optimization history")
     if "scale_pos_weight" not in best_params:
         best_params["scale_pos_weight"] = float(np.sum(y_train_final == 0)) / float(np.sum(y_train_final == 1)) if np.sum(y_train_final == 1) else 1.0
     logger.info("\n" + "=" * 80)

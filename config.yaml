@@ -1,13 +1,13 @@
 data:
-  raw_path: data/raw/diabetes_binary_health_indicators_BRFSS2015.csv
+  raw_path: data/raw/diabetes.csv
   processed_path: data/processed/diabetes_processed.csv
   synthetic_path: data/synthetic/diabetes_synthetic.csv
   train_test_split: 0.8
   random_state: 42
-  target_column: Diabetes_binary
+  target_column: Outcome
   rebalance_strategy: oversample_minority
   oversample_target_ratio: 1.0
-  augmentation_method: diffusion  # Options: diffusion, smote, adasyn, none
+  augmentation_method: smote  # Options: diffusion, smote, adasyn, none
   smote_k_neighbors: 5
   adasyn_n_neighbors: 5
 
@@ -41,9 +41,9 @@ evaluation:
   plots_path: results
   save_plots: true
   validation_cv_folds: 5
-  threshold_method: fixed
-  fixed_threshold: 0.25
-  threshold_beta: 0.25
+  threshold_method: f1
+  fixed_threshold: 0.5
+  threshold_beta: 1.0
   validate_feature_selection: false
   auto_select_feature_set: true
 
@@ -54,23 +54,23 @@ diffusion:
   beta_end: 0.02
   hidden_dim: 64
   num_layers: 2
-  batch_size: 64
+  batch_size: 32
   learning_rate: 0.001
   epochs: 50
-  num_synthetic_samples: 500
+  num_synthetic_samples: 200
   use_synthetic_augmentation: true
   generate_positive_synthetic_only: true
 
 optimization:
   optimizer_type: optuna
-  objective_metric: recall
-  population_size: 25
-  max_iterations: 40
+  objective_metric: f1
+  population_size: 15
+  max_iterations: 30
   early_stopping_rounds: 8
   convergence_threshold: 0.0001
-  cv_folds: 3
+  cv_folds: 5
   repeated_cv_repeats: 1
-  optuna_trials: 20
+  optuna_trials: 50
   search_space:
     max_depth: {type: int, min: 3, max: 10}
     learning_rate: {type: float, min: 0.01, max: 0.2}

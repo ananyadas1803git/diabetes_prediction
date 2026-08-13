@@ -40,6 +40,7 @@ class ModelEvaluator:
         if method == "fixed":
             return float(self.config["evaluation"].get("fixed_threshold", 0.5))
         
+        probabilities = self._extract_positive_proba(probabilities)
         fpr, tpr, thresholds = roc_curve(y_true, probabilities)
         if method == "youden":
             youden_j = tpr - fpr

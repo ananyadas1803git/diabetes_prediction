@@ -30,7 +30,7 @@ class OptunaXGBoostOptimizer:
         params['random_state'] = self.random_state
         params['eval_metric'] = ['logloss', 'auc']
         params['verbosity'] = 0
-        params['n_jobs'] = -1
+        params['n_jobs'] = 1
         return params
 
     def _objective(self, trial: optuna.Trial, X_train: np.ndarray, y_train: np.ndarray) -> float:
@@ -50,7 +50,7 @@ class OptunaXGBoostOptimizer:
             y_train,
             cv=cv,
             scoring=self.objective_metric,
-            n_jobs=-1,
+            n_jobs=1,
         )
         return float(np.mean(scores))
 

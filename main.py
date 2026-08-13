@@ -218,8 +218,8 @@ def main(config_path: str = "config.yaml", run_baselines: bool = False, optimize
     if config['model'].get('calibration', {}).get('enabled', False):
         calibration_method = config['model']['calibration'].get('method', 'sigmoid')
         logger.info(f"Calibrating model probabilities using {calibration_method}")
-        calibrator = CalibratedClassifierCV(estimator=model, method=calibration_method, cv='prefit')
-        calibrator.fit(X_val_fit, y_val_fit)
+        calibrator = CalibratedClassifierCV(estimator=model, method=calibration_method, cv=5)
+        calibrator.fit(X_train_fit, y_train_fit)
         model = calibrator
         logger.info("Calibration completed")
 

@@ -1,6 +1,6 @@
 # Diffusion-Enhanced TSO-HBA Optimized XGBoost Framework for Early Diabetes Prediction
 
-A research-oriented machine learning framework that combines tabular diffusion-based data augmentation, hybrid Tuna Swarm Optimization–Honey Badger Algorithm (TSO-HBA), feature selection, and XGBoost classification for early diabetes prediction.
+A research-oriented machine learning framework that combines tabular diffusion-based data augmentation along with SMOTE and ADASYN, hybrid Tuna Swarm Optimization–Honey Badger Algorithm (TSO-HBA), feature selection, and XGBoost classification for early diabetes prediction.
 
 ## Features
 
